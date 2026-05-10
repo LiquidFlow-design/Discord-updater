@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self' 'unsafe-inline';" />
+  <title>Discord Updater</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=gg+sans:wght@400;500;600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- Custom Title Bar -->
+  <div class="titlebar" id="titlebar">
+    <div class="titlebar-drag">
+      <div class="titlebar-logo">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+          <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z" fill="#5865F2"/>
+        </svg>
+      </div>
+      <span class="titlebar-title">Discord Updater</span>
+    </div>
+    <div class="titlebar-controls">
+      <button class="tb-btn tb-minimize" id="btn-minimize" title="Minimieren">
+        <svg width="10" height="1" viewBox="0 0 10 1"><rect width="10" height="1" fill="currentColor"/></svg>
+      </button>
+      <button class="tb-btn tb-close" id="btn-close" title="Schließen">
+        <svg width="10" height="10" viewBox="0 0 10 10"><path d="M1 1l8 8M9 1l-8 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Main Layout -->
+  <div class="app-layout">
+    <!-- Sidebar -->
+    <nav class="sidebar">
+      <div class="nav-items">
+        <button class="nav-item active" data-page="dashboard">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+            <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+          </svg>
+          <span>Dashboard</span>
+        </button>
+        <button class="nav-item" data-page="updates">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+          </svg>
+          <span>Updates</span>
+        </button>
+        <button class="nav-item" data-page="repair">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+          </svg>
+          <span>Reparatur</span>
+        </button>
+        <button class="nav-item" data-page="history">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+          </svg>
+          <span>Verlauf</span>
+        </button>
+        <button class="nav-item" data-page="settings">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+          <span>Einstellungen</span>
+        </button>
+      </div>
+
+      <div class="sidebar-footer">
+        <div class="status-dot" id="status-dot" title="Update-Prüfung läuft..."></div>
+      </div>
+    </nav>
+
+    <!-- Content Area -->
+    <main class="content">
+
+      <!-- ── DASHBOARD ── -->
+      <section class="page active" id="page-dashboard">
+        <div class="page-header">
+          <h1 class="page-title">Dashboard</h1>
+          <p class="page-subtitle">Übersicht deiner Discord-Installation</p>
+        </div>
+
+        <div class="cards-grid">
+          <div class="card card-discord">
+            <div class="card-header">
+              <div class="card-icon discord-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="#5865F2">
+                  <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/>
+                </svg>
+              </div>
+              <div class="card-title-group">
+                <h3>Discord</h3>
+                <span class="badge" id="discord-badge">Prüfe...</span>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="info-row">
+                <span class="info-label">Version</span>
+                <span class="info-value" id="discord-version">–</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Pfad</span>
+                <span class="info-value info-path" id="discord-path">–</span>
+              </div>
+            </div>
+            <div class="card-actions">
+              <button class="btn btn-primary btn-sm" id="btn-launch-discord">Starten</button>
+              <button class="btn btn-ghost btn-sm" id="btn-update-discord-dash">Update</button>
+            </div>
+          </div>
+
+          <div class="card card-bd">
+            <div class="card-header">
+              <div class="card-icon bd-icon">
+                <svg width="22" height="22" viewBox="0 0 100 100" fill="none">
+                  <circle cx="50" cy="50" r="45" fill="#3E82E5" opacity="0.15"/>
+                  <text x="50" y="65" text-anchor="middle" font-size="42" font-weight="bold" fill="#3E82E5">B</text>
+                </svg>
+              </div>
+              <div class="card-title-group">
+                <h3>BetterDiscord</h3>
+                <span class="badge" id="bd-badge">Prüfe...</span>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="info-row">
+                <span class="info-label">Version</span>
+                <span class="info-value" id="bd-version">–</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Pfad</span>
+                <span class="info-value info-path" id="bd-path">–</span>
+              </div>
+            </div>
+            <div class="card-actions">
+              <button class="btn btn-primary btn-sm" id="btn-update-bd-dash">Update</button>
+              <button class="btn btn-ghost btn-sm" onclick="window.api.openExternal('https://betterdiscord.app/')">Website</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-block">
+          <div class="section-header-row">
+            <h2 class="section-title">Schnellaktionen</h2>
+          </div>
+          <div class="quick-actions">
+            <button class="quick-action-btn" id="btn-check-updates">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+              <span>Auf Updates prüfen</span>
+            </button>
+            <button class="quick-action-btn" onclick="switchPage('repair')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+              <span>Discord reparieren</span>
+            </button>
+            <button class="quick-action-btn" onclick="switchPage('history')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              <span>Verlauf anzeigen</span>
+            </button>
+            <button class="quick-action-btn" onclick="window.api.openExternal('https://betterdiscord.app/plugins')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+              <span>BD Plugins</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Last check info -->
+        <div class="last-check-bar">
+          <span class="last-check-label">Letzte Prüfung:</span>
+          <span id="last-check-time">–</span>
+        </div>
+      </section>
+
+      <!-- ── UPDATES ── -->
+      <section class="page" id="page-updates">
+        <div class="page-header">
+          <h1 class="page-title">Updates</h1>
+          <p class="page-subtitle">Discord und BetterDiscord aktualisieren</p>
+        </div>
+
+        <!-- Check button -->
+        <div class="update-check-bar">
+          <button class="btn btn-primary btn-sm" id="btn-check-updates-page">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+            Auf Updates prüfen
+          </button>
+          <span class="check-time-label">Letzte Prüfung: <span id="upd-last-check">–</span></span>
+        </div>
+
+        <div class="update-panel">
+          <!-- Discord -->
+          <div class="update-item">
+            <div class="update-item-left">
+              <div class="update-app-icon discord-icon-lg">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="#5865F2">
+                  <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/>
+                </svg>
+              </div>
+              <div>
+                <h3>Discord</h3>
+                <div class="version-row">
+                  <span class="version-label">Installiert:</span>
+                  <span class="version-val" id="upd-discord-ver">Lädt...</span>
+                </div>
+                <div class="version-row">
+                  <span class="version-label">Aktuell:</span>
+                  <span class="version-val version-muted" id="upd-discord-latest">Wird von Discord verwaltet</span>
+                </div>
+              </div>
+            </div>
+            <div class="update-item-right">
+              <span class="badge" id="upd-discord-badge">–</span>
+              <button class="btn btn-primary" id="btn-update-discord">Update starten</button>
+            </div>
+          </div>
+
+          <div class="update-divider"></div>
+
+          <!-- BetterDiscord -->
+          <div class="update-item">
+            <div class="update-item-left">
+              <div class="update-app-icon bd-icon-lg">
+                <svg width="28" height="28" viewBox="0 0 100 100">
+                  <text x="50" y="72" text-anchor="middle" font-size="60" font-weight="900" fill="#3E82E5">B</text>
+                </svg>
+              </div>
+              <div>
+                <h3>BetterDiscord</h3>
+                <div class="version-row">
+                  <span class="version-label">Installiert:</span>
+                  <span class="version-val" id="upd-bd-ver">Lädt...</span>
+                </div>
+                <div class="version-row">
+                  <span class="version-label">Neueste:</span>
+                  <span class="version-val version-muted" id="upd-bd-latest">Wird geprüft...</span>
+                </div>
+              </div>
+            </div>
+            <div class="update-item-right">
+              <span class="badge" id="upd-bd-badge">–</span>
+              <button class="btn btn-primary" id="btn-update-bd">Update installieren</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- BD Update Progress -->
+        <div class="bd-progress-box" id="bd-progress-box" style="display:none">
+          <div class="bd-progress-header">
+            <div class="spinner"></div>
+            <span id="bd-progress-text">BetterDiscord wird aktualisiert...</span>
+          </div>
+          <div class="bd-progress-steps" id="bd-progress-steps"></div>
+        </div>
+
+        <div class="info-box">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <p>Discord aktualisiert sich automatisch. BetterDiscord wird direkt über GitHub heruntergeladen und automatisch injiziert – kein manueller Installer nötig.</p>
+        </div>
+
+        <div class="auto-update-toggle">
+          <div>
+            <h4>Automatisch BetterDiscord nachziehen</h4>
+            <p>Wenn Discord ein Update erkannt wird, wird BetterDiscord automatisch aktualisiert und neu injiziert.</p>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="toggle-auto-bd">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </section>
+
+      <!-- ── REPAIR ── -->
+      <section class="page" id="page-repair">
+        <div class="page-header">
+          <h1 class="page-title">Reparatur</h1>
+          <p class="page-subtitle">Discord-Installationsprobleme beheben</p>
+        </div>
+
+        <div class="repair-grid">
+          <div class="repair-card">
+            <div class="repair-card-icon" style="color: #5865F2">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+            </div>
+            <h3>Discord reparieren</h3>
+            <p>Beendet Discord, führt den Updater aus und startet Discord neu. Behebt häufige Startprobleme.</p>
+            <button class="btn btn-primary" id="btn-repair-discord">Reparatur starten</button>
+          </div>
+
+          <div class="repair-card">
+            <div class="repair-card-icon" style="color: #3E82E5">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.9"/></svg>
+            </div>
+            <h3>BetterDiscord neu installieren</h3>
+            <p>Öffnet die BetterDiscord-Installer-Seite für eine saubere Neuinstallation.</p>
+            <button class="btn btn-secondary" onclick="window.api.openExternal('https://betterdiscord.app/')">Installer herunterladen</button>
+          </div>
+
+          <div class="repair-card">
+            <div class="repair-card-icon" style="color: #ED4245">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+            </div>
+            <h3>Discord neu installieren</h3>
+            <p>Öffnet die offizielle Discord-Download-Seite für eine vollständige Neuinstallation.</p>
+            <button class="btn btn-danger" onclick="window.api.openExternal('https://discord.com/download')">Discord herunterladen</button>
+          </div>
+
+          <div class="repair-card">
+            <div class="repair-card-icon" style="color: #FEE75C">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            </div>
+            <h3>Support-Forum</h3>
+            <p>Öffnet den BetterDiscord-Support-Server auf Discord für individuelle Hilfe.</p>
+            <button class="btn btn-ghost" onclick="window.api.openExternal('https://discord.gg/0Tmfo5ZbORCRqbAd')">Support öffnen</button>
+          </div>
+        </div>
+
+        <div class="repair-status" id="repair-status" style="display:none">
+          <div class="repair-status-icon">
+            <div class="spinner"></div>
+          </div>
+          <span id="repair-status-text">Reparatur läuft...</span>
+        </div>
+      </section>
+
+      <!-- ── HISTORY ── -->
+      <section class="page" id="page-history">
+        <div class="page-header">
+          <h1 class="page-title">Verlauf</h1>
+          <p class="page-subtitle">Protokoll aller Änderungen und Updates</p>
+        </div>
+
+        <div class="history-toolbar">
+          <button class="btn btn-ghost btn-sm" id="btn-clear-history">Verlauf löschen</button>
+          <button class="btn btn-ghost btn-sm" id="btn-refresh-history">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.9"/></svg>
+            Aktualisieren
+          </button>
+        </div>
+
+        <div class="history-list" id="history-list">
+          <div class="history-empty">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <p>Kein Verlauf vorhanden</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── SETTINGS ── -->
+      <section class="page" id="page-settings">
+        <div class="page-header">
+          <h1 class="page-title">Einstellungen</h1>
+          <p class="page-subtitle">Verhalten und Benachrichtigungen anpassen</p>
+        </div>
+
+        <div class="settings-group">
+          <h3 class="settings-group-title">Allgemein</h3>
+
+          <div class="settings-item">
+            <div class="settings-item-info">
+              <h4>Autostart</h4>
+              <p>Discord Updater beim Windows-Start automatisch starten</p>
+            </div>
+            <label class="toggle">
+              <input type="checkbox" id="setting-autostart">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+
+          <div class="settings-item">
+            <div class="settings-item-info">
+              <h4>Im Tray minimieren</h4>
+              <p>Beim Schließen in den System Tray minimieren statt beenden</p>
+            </div>
+            <label class="toggle">
+              <input type="checkbox" id="setting-minimize-tray">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="settings-group">
+          <h3 class="settings-group-title">Updates</h3>
+
+          <div class="settings-item">
+            <div class="settings-item-info">
+              <h4>Benachrichtigungen</h4>
+              <p>Desktop-Benachrichtigungen bei erkannten Updates anzeigen</p>
+            </div>
+            <label class="toggle">
+              <input type="checkbox" id="setting-notifications">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+
+          <div class="settings-item">
+            <div class="settings-item-info">
+              <h4>BD automatisch aktualisieren</h4>
+              <p>BetterDiscord nach einem Discord-Update automatisch aktualisieren</p>
+            </div>
+            <label class="toggle">
+              <input type="checkbox" id="setting-auto-bd">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+
+          <div class="settings-item settings-item-select">
+            <div class="settings-item-info">
+              <h4>Update-Prüf-Intervall</h4>
+              <p>Wie oft im Hintergrund auf Updates geprüft werden soll</p>
+            </div>
+            <select class="settings-select" id="setting-interval">
+              <option value="15">Alle 15 Min.</option>
+              <option value="30">Alle 30 Min.</option>
+              <option value="60" selected>Stündlich</option>
+              <option value="120">Alle 2 Std.</option>
+              <option value="360">Alle 6 Std.</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="settings-group">
+          <h3 class="settings-group-title">Info</h3>
+          <div class="settings-info-row">
+            <span>Discord Updater Version</span>
+            <span class="info-val">1.0.0</span>
+          </div>
+          <div class="settings-info-row">
+            <span>GitHub</span>
+            <button class="btn-link" onclick="window.api.openExternal('https://github.com/')">Quellcode ansehen</button>
+          </div>
+          <div class="settings-info-row">
+            <span>BetterDiscord</span>
+            <button class="btn-link" onclick="window.api.openExternal('https://betterdiscord.app/')">betterdiscord.app</button>
+          </div>
+        </div>
+
+        <button class="btn btn-danger btn-sm" id="btn-quit" style="margin-top:8px">Anwendung beenden</button>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- Toast Notification -->
+  <div class="toast" id="toast">
+    <span id="toast-msg"></span>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
