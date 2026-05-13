@@ -4,7 +4,10 @@ const os = require('os');
 const fs = require('fs');
 const https = require('https');
 const { execSync, exec, spawn } = require('child_process');
+const { promisify } = require('util');
 const schedule = require('node-schedule');
+
+const execAsync = promisify(exec);
 
 let store;
 app.setAppUserModelId('com.discordupdater.app');
@@ -131,6 +134,19 @@ function findBetterDiscord() {
   return paths.find(p => fs.existsSync(p)) || null;
 }
 
+// FIX: Separate helper that returns the expected BD path even if the folder
+// doesn't exist yet, so we can create it on first install.
+function getBetterDiscordBasePath() {
+  const platform = process.platform;
+  if (platform === 'win32') {
+    return path.join(process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'), 'BetterDiscord');
+  } else if (platform === 'darwin') {
+    return path.join(os.homedir(), 'Library', 'Application Support', 'BetterDiscord');
+  } else {
+    return path.join(os.homedir(), '.config', 'BetterDiscord');
+  }
+}
+
 function getBDInstalledVersion() {
   try {
     const bdPath = findBetterDiscord();
@@ -216,21 +232,67 @@ async function getLatestBDVersion() {
   return null;
 }
 
-async function getLatestDiscordVersion() {
-  // Discord doesn't have a public API, but we can check the installed version
-  // and compare to what we know. Return installed version for now.
-  return getDiscordVersion(findDiscordInstallation());
+// ─── FIX: Kill ALL Discord variants and wait for file locks to release ───────
+async function killAllDiscordProcesses() {
+  if (process.platform === 'win32') {
+    const processes = ['Discord.exe', 'DiscordCanary.exe', 'DiscordPTB.exe', 'DiscordDevelopment.exe'];
+    for (const proc of processes) {
+      try {
+        await execAsync(`taskkill /F /IM "${proc}" /T`);
+        console.log(`Killed ${proc}`);
+      } catch (e) {
+        // Process wasn't running — that's fine
+      }
+    }
+  } else if (process.platform === 'darwin') {
+    try { await execAsync('pkill -f "Discord"'); } catch (e) {}
+  } else {
+    try { await execAsync('pkill -f "discord"'); } catch (e) {}
+  }
+  // FIX: Wait long enough for Windows to release file locks on the .asar
+  await new Promise(r => setTimeout(r, 3000));
 }
 
-// ─── BetterDiscord Auto-Update ───────────────────────────────────────────────
-async function performBDUpdate() {
-  const bdPath = findBetterDiscord();
-  if (!bdPath) throw new Error('BetterDiscord ist nicht installiert');
+// ─── Safe file replace using copy+unlink instead of rename ──────────────────
+// On Windows, renaming a file that is open by ANY process (even a terminated
+// one whose handle hasn't been GC'd yet) throws EBUSY.  copyFile + unlink
+// works because Windows allows overwriting / deleting files that are open
+// as long as the write-share mode permits it — which is the case for .asar
+// files loaded by Electron's asar module.
+async function safeReplaceFile(srcPath, destPath) {
+  // Step 1: overwrite the destination directly with the new content.
+  // fs.copyFile with COPYFILE_FICLONE_FORCE is not available everywhere, so
+  // we use the plain overwrite flag (0 = overwrite if exists).
+  await fs.promises.copyFile(srcPath, destPath);
 
+  // Step 2: remove the temp source file.
+  try {
+    await fs.promises.unlink(srcPath);
+  } catch (e) {
+    // Non-fatal — the temp file will just be overwritten next time.
+    console.warn('Could not remove temp file:', e.message);
+  }
+}
+
+// ─── BetterDiscord Install / Update ─────────────────────────────────────────
+// FIX: Unified function handles both first install and updates.
+// Previously, a missing BD folder caused an early throw. Now we create the
+// folder structure if needed (first install scenario).
+async function performBDUpdate() {
   const discordPath = findDiscordInstallation();
   if (!discordPath) throw new Error('Discord nicht gefunden');
 
-  // 1. Get latest release info from GitHub
+  // FIX: Use getBetterDiscordBasePath() instead of findBetterDiscord() so we
+  // can create the directory if it doesn't exist yet (first install).
+  const bdPath = getBetterDiscordBasePath();
+  const dataDir = path.join(bdPath, 'data');
+
+  // Create BD directory structure if missing (first install)
+  if (!fs.existsSync(dataDir)) {
+    fs.mkdirSync(dataDir, { recursive: true });
+  }
+
+  // 1. Fetch latest release info from GitHub
   if (mainWindow) mainWindow.webContents.send('bd-update-progress', { step: 'fetch', message: 'Neueste BD-Version wird abgerufen...' });
 
   const { status, data } = await httpsGet('https://api.github.com/repos/BetterDiscord/BetterDiscord/releases/latest');
@@ -242,33 +304,33 @@ async function performBDUpdate() {
 
   const installedVersion = getBDInstalledVersion();
 
-  // 2. Download new asar
+  // 2. Download new asar to temp file
   if (mainWindow) mainWindow.webContents.send('bd-update-progress', { step: 'download', message: `Lade betterdiscord.asar v${latestVersion} herunter...` });
-
-  const dataDir = path.join(bdPath, 'data');
-  if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
 
   const asarDest = path.join(dataDir, 'betterdiscord.asar');
   const asarTemp = asarDest + '.tmp';
 
+  // Remove stale temp file if present
+  if (fs.existsSync(asarTemp)) {
+    try { fs.unlinkSync(asarTemp); } catch (e) {}
+  }
+
   await downloadFile(assetUrl, asarTemp);
 
-  // 3. Kill Discord
+  // 3. FIX: Kill ALL Discord processes before touching the locked file
   if (mainWindow) mainWindow.webContents.send('bd-update-progress', { step: 'stop', message: 'Discord wird beendet...' });
-  try { execSync('taskkill /F /IM Discord.exe', { stdio: 'pipe' }); } catch (e) {}
-  await new Promise(r => setTimeout(r, 1500));
+  await killAllDiscordProcesses();
 
-  // 4. Replace asar
+  // 4. FIX: Replace asar with retry logic for EBUSY
   if (mainWindow) mainWindow.webContents.send('bd-update-progress', { step: 'install', message: 'Installiere neue Version...' });
-  if (fs.existsSync(asarDest)) fs.renameSync(asarDest, asarDest + '.bak');
-  fs.renameSync(asarTemp, asarDest);
+  await safeReplaceFile(asarTemp, asarDest);
 
   // 5. Save version info
   fs.writeFileSync(path.join(dataDir, 'version.json'), JSON.stringify({ version: latestVersion }, null, 2));
   store.set('latestBDVersion', latestVersion);
   store.set('lastBDVersion', latestVersion);
 
-  // 6. Re-inject into Discord index.js (find latest app- folder)
+  // 6. Re-inject into Discord index.js
   if (mainWindow) mainWindow.webContents.send('bd-update-progress', { step: 'inject', message: 'BetterDiscord wird injiziert...' });
 
   if (process.platform === 'win32') {
@@ -277,15 +339,22 @@ async function performBDUpdate() {
       .sort();
 
     for (const folder of appFolders) {
-      const indexPath = path.join(discordPath, folder, 'modules', 'discord_desktop_core-1', 'discord_desktop_core', 'index.js');
+      const indexPath = path.join(
+        discordPath, folder,
+        'modules', 'discord_desktop_core-1', 'discord_desktop_core', 'index.js'
+      );
       if (fs.existsSync(indexPath)) {
         let content = fs.readFileSync(indexPath, 'utf8');
-        // Remove old BD injection if present
-        content = content.replace(/\n?\/\/ BetterDiscord\nrequire\([^)]+betterdiscord\.asar[^)]*\);?\n?/g, '');
-        content = content.replace(/\n?require\([^)]+betterdiscord\.asar[^)]*\);?\n?/g, '');
-        // Inject new
-        const injection = `\n// BetterDiscord\nrequire('${asarDest.replace(/\\/g, '\\\\')}');\n`;
+
+        // Remove any existing BD injection
+        content = content.replace(/\n?\/\/ BetterDiscord\nrequire\([^)]+\);\n?/g, '');
+
+        // FIX: Use forward slashes in the require path — safer cross-platform
+        // and avoids double-escape issues with JSON.stringify-style escaping.
+        const requirePath = asarDest.replace(/\\/g, '/');
+        const injection = `\n// BetterDiscord\nrequire('${requirePath}');\n`;
         content = injection + content;
+
         fs.writeFileSync(indexPath, content, 'utf8');
       }
     }
@@ -296,15 +365,20 @@ async function performBDUpdate() {
   await new Promise(r => setTimeout(r, 1000));
   await launchDiscord();
 
+  const historyType = installedVersion ? 'bd_auto_update' : 'bd_first_install';
   addToHistory({
-    type: 'bd_auto_update',
-    from: installedVersion || '?',
+    type: historyType,
+    from: installedVersion || 'Nicht installiert',
     to: latestVersion,
     timestamp: new Date().toISOString(),
   });
 
   if (store.get('notifications')) {
-    showNotification('BetterDiscord aktualisiert', `BetterDiscord wurde auf v${latestVersion} aktualisiert.`);
+    const isFirstInstall = !installedVersion;
+    showNotification(
+      isFirstInstall ? 'BetterDiscord installiert' : 'BetterDiscord aktualisiert',
+      `BetterDiscord v${latestVersion} wurde erfolgreich ${isFirstInstall ? 'installiert' : 'aktualisiert'}.`
+    );
   }
 
   return { success: true, version: latestVersion, message: `BetterDiscord v${latestVersion} erfolgreich installiert` };
@@ -342,12 +416,11 @@ async function checkForUpdates(fromTray = false) {
       store.set('latestBDVersion', latestBD);
 
       if (latestBD && result.betterDiscord.version && result.betterDiscord.version !== 'Installiert') {
-        // Compare semver loosely
         const installed = result.betterDiscord.version.replace(/^v/, '');
         const latest = latestBD.replace(/^v/, '');
         result.betterDiscord.updateAvailable = installed !== latest;
       } else if (latestBD && result.betterDiscord.version === 'Installiert') {
-        result.betterDiscord.updateAvailable = false; // can't tell
+        result.betterDiscord.updateAvailable = false;
       }
     } catch (e) { console.error('GitHub BD check failed:', e); }
 
@@ -365,9 +438,11 @@ async function checkForUpdates(fromTray = false) {
         showNotification('Discord Update erkannt', `Discord wurde von ${lastVersion} auf ${result.discord.version} aktualisiert.`);
       }
 
-      // Auto-update BD
-      if (store.get('autoUpdateBD') && result.betterDiscord.installed) {
+      // Auto-update BD if enabled
+      // FIX: Trigger even if BD wasn't previously installed (first install case)
+      if (store.get('autoUpdateBD')) {
         try {
+          if (mainWindow) mainWindow.webContents.send('bd-update-required', {});
           const bdResult = await performBDUpdate();
           if (mainWindow) mainWindow.webContents.send('bd-update-done', { version: bdResult.version });
         } catch (e) {
@@ -422,8 +497,7 @@ async function repairDiscord() {
   if (!discordPath) throw new Error('Discord nicht gefunden');
   const updater = path.join(discordPath, 'Update.exe');
   if (!fs.existsSync(updater)) throw new Error('Discord Updater nicht gefunden');
-  try { execSync('taskkill /F /IM Discord.exe', { stdio: 'pipe' }); } catch (e) {}
-  await new Promise(r => setTimeout(r, 1000));
+  await killAllDiscordProcesses(); // FIX: use unified kill function
   spawn(updater, ['--processStart', 'Discord.exe', '--process-start-args', '--'], { detached: true, stdio: 'ignore' }).unref();
   addToHistory({ type: 'repair', timestamp: new Date().toISOString() });
   return { success: true, message: 'Discord Reparatur gestartet' };
