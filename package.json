@@ -1,6 +1,6 @@
 {
   "name": "discord-updater",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Discord & BetterDiscord Update Manager",
   "main": "src/main/main.js",
   "scripts": {
@@ -23,7 +23,9 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "icon": "src/assets/icon.ico"
@@ -41,7 +43,14 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Discord Updater"
+      "shortcutName": "Discord Updater",
+      "installerLanguages": [
+        "de_DE",
+        "en_US"
+      ],
+      "language": "1031",
+      "multiLanguageInstaller": true,
+      "include": "installer.nsh"
     }
   },
   "dependencies": {
@@ -53,6 +62,6 @@
     "electron": "^39.8.5",
     "electron-builder": "^26.8.1"
   },
-  "author": "Discord Updater",
+  "author": "LiquidFlow-design",
   "license": "MIT"
 }

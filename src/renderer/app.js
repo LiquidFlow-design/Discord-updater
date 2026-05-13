@@ -1,6 +1,41 @@
 // ── Discord Updater – Renderer ─────────────────────────────────────────
 
 let currentStatus = null;
+let currentLang = 'de';
+
+// ── i18n ──────────────────────────────────────────────────────────────
+const t = (key, ...args) => {
+  const strings = window.__translations?.[currentLang] || window.__translations?.de || {};
+  let str = strings[key] || key;
+  args.forEach((arg, i) => { str = str.replace(`{${i}}`, arg); });
+  return str;
+};
+
+function applyLanguage(lang) {
+  currentLang = lang;
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    const attr = el.getAttribute('data-i18n-attr');
+    if (attr) {
+      el.setAttribute(attr, t(key));
+    } else {
+      el.textContent = t(key);
+    }
+  });
+  // Update select options
+  document.querySelectorAll('[data-i18n-option]').forEach(el => {
+    el.textContent = t(el.getAttribute('data-i18n-option'));
+  });
+  // Update status dot tooltip
+  const dot = document.getElementById('status-dot');
+  if (dot) {
+    const state = dot.className.includes('checking') ? 'checking' : dot.className.includes('error') ? 'error' : '';
+    setStatusDot(state);
+  }
+  // Update language selector to reflect current
+  const sel = document.getElementById('setting-language');
+  if (sel) sel.value = lang;
+}
 
 // ── Navigation ────────────────────────────────────────────────────────
 function switchPage(name) {
@@ -35,13 +70,14 @@ function showToast(msg, duration = 3500) {
 function setStatusDot(state) {
   const dot = document.getElementById('status-dot');
   dot.className = 'status-dot' + (state ? ` ${state}` : '');
-  dot.title = state === 'checking' ? 'Prüfe auf Updates...' : state === 'error' ? 'Fehler' : 'Aktiv';
+  const label = state === 'checking' ? t('status.checking') : state === 'error' ? t('status.error') : t('status.active');
+  dot.title = label;
 }
 
 // ── Render Status ─────────────────────────────────────────────────────
 function renderStatus(status) {
   const { discord, betterDiscord } = status;
-  const now = new Date().toLocaleString('de-DE');
+  const now = new Date().toLocaleString(currentLang === 'de' ? 'de-DE' : 'en-GB');
 
   // ── Dashboard cards
   setText('discord-version', discord.version || '–');
@@ -55,20 +91,20 @@ function renderStatus(status) {
   setBadge('bd-badge', betterDiscord.installed);
 
   // ── Updates page – Discord
-  setText('upd-discord-ver', discord.version || 'Nicht gefunden');
-  setText('upd-discord-latest', 'Wird von Discord verwaltet');
+  setText('upd-discord-ver', discord.version || t('badge.notfound'));
+  setText('upd-discord-latest', t('updates.managed'));
 
   const discordBadgeEl = document.getElementById('upd-discord-badge');
   if (discord.installed) {
-    discordBadgeEl.textContent = 'Installiert';
+    discordBadgeEl.textContent = t('badge.installed');
     discordBadgeEl.className = 'badge installed';
   } else {
-    discordBadgeEl.textContent = 'Nicht gefunden';
+    discordBadgeEl.textContent = t('badge.notfound');
     discordBadgeEl.className = 'badge not-found';
   }
 
   // ── Updates page – BetterDiscord
-  const installedVer = betterDiscord.version || 'Nicht installiert';
+  const installedVer = betterDiscord.version || t('badge.notfound');
   const latestVer = betterDiscord.latestVersion;
 
   setText('upd-bd-ver', installedVer);
@@ -76,25 +112,23 @@ function renderStatus(status) {
   const latestEl = document.getElementById('upd-bd-latest');
   if (latestVer) {
     latestEl.textContent = `v${latestVer}`;
-    if (betterDiscord.updateAvailable) {
-      latestEl.className = 'version-val version-new';
-    } else {
-      latestEl.className = 'version-val version-muted';
-    }
+    latestEl.className = betterDiscord.updateAvailable
+      ? 'version-val version-new'
+      : 'version-val version-muted';
   } else {
-    latestEl.textContent = 'Wird geprüft...';
+    latestEl.textContent = t('updates.checking');
     latestEl.className = 'version-val version-muted';
   }
 
   const bdBadgeEl = document.getElementById('upd-bd-badge');
   if (!betterDiscord.installed) {
-    bdBadgeEl.textContent = 'Nicht gefunden';
+    bdBadgeEl.textContent = t('badge.notfound');
     bdBadgeEl.className = 'badge not-found';
   } else if (betterDiscord.updateAvailable) {
-    bdBadgeEl.textContent = 'Update verfügbar';
+    bdBadgeEl.textContent = t('badge.updateavailable');
     bdBadgeEl.className = 'badge update-available';
   } else {
-    bdBadgeEl.textContent = 'Aktuell';
+    bdBadgeEl.textContent = t('badge.uptodate');
     bdBadgeEl.className = 'badge installed';
   }
 
@@ -115,7 +149,7 @@ function setAttr(id, attr, val) {
 function setBadge(id, installed) {
   const el = document.getElementById(id);
   if (!el) return;
-  el.textContent = installed ? 'Installiert' : 'Nicht gefunden';
+  el.textContent = installed ? t('badge.installed') : t('badge.notfound');
   el.className = 'badge ' + (installed ? 'installed' : 'not-found');
 }
 
@@ -128,6 +162,10 @@ function renderSettings(settings) {
   setCheck('toggle-auto-bd', settings.autoUpdateBD);
   const intervalEl = document.getElementById('setting-interval');
   if (intervalEl) intervalEl.value = settings.checkInterval || 60;
+  if (settings.language) {
+    currentLang = settings.language;
+    applyLanguage(settings.language);
+  }
 }
 function setCheck(id, val) {
   const el = document.getElementById(id);
@@ -140,6 +178,11 @@ async function loadStatus() {
   try {
     const status = await window.api.getStatus();
     currentStatus = status;
+    // Apply language from settings first
+    if (status.settings?.language) {
+      currentLang = status.settings.language;
+      applyLanguage(currentLang);
+    }
     renderStatus(status);
     renderSettings(status.settings);
     setStatusDot('');
@@ -154,14 +197,14 @@ async function checkForUpdates() {
   setStatusDot('checking');
   const btns = ['btn-check-updates', 'btn-check-updates-page'].map(id => document.getElementById(id)).filter(Boolean);
   btns.forEach(b => b.disabled = true);
-  showToast('Prüfe auf Updates...');
+  showToast(t('toast.checking'));
   try {
     const result = await window.api.checkUpdates();
     if (result) { currentStatus = result; renderStatus(result); }
-    showToast('Update-Prüfung abgeschlossen ✓');
+    showToast(t('toast.checkdone'));
     setStatusDot('');
   } catch (e) {
-    showToast('Fehler bei der Update-Prüfung');
+    showToast(t('toast.checkerror'));
     setStatusDot('error');
   } finally {
     btns.forEach(b => b.disabled = false);
@@ -172,37 +215,40 @@ document.getElementById('btn-check-updates').addEventListener('click', checkForU
 document.getElementById('btn-check-updates-page')?.addEventListener('click', checkForUpdates);
 
 // ── BD Progress ───────────────────────────────────────────────────────
-const stepLabels = {
-  fetch:    'Versionsinformationen abrufen',
-  download: 'betterdiscord.asar herunterladen',
-  stop:     'Discord beenden',
-  install:  'Neue Version installieren',
-  inject:   'In Discord injizieren',
-  restart:  'Discord neu starten',
-};
 const stepOrder = ['fetch', 'download', 'stop', 'install', 'inject', 'restart'];
 let completedSteps = [];
+
+function getStepLabels() {
+  return {
+    fetch:    t('bd.progress.fetch'),
+    download: t('bd.progress.download'),
+    stop:     t('bd.progress.stop'),
+    install:  t('bd.progress.install'),
+    inject:   t('bd.progress.inject'),
+    restart:  t('bd.progress.restart'),
+  };
+}
 
 function showBDProgress(step, message) {
   const box = document.getElementById('bd-progress-box');
   const text = document.getElementById('bd-progress-text');
   const stepsEl = document.getElementById('bd-progress-steps');
   box.style.display = 'block';
-  text.textContent = message || 'BetterDiscord wird aktualisiert...';
+  text.textContent = message || t('bd.progress.default');
 
   if (step && !completedSteps.includes(step)) {
-    // Mark previous steps as done
     const idx = stepOrder.indexOf(step);
     stepOrder.slice(0, idx).forEach(s => {
       if (!completedSteps.includes(s)) completedSteps.push(s);
     });
   }
 
+  const labels = getStepLabels();
   stepsEl.innerHTML = stepOrder.map(s => {
     const isDone = completedSteps.includes(s);
     const isActive = s === step;
     const cls = isDone ? 'bd-step done' : isActive ? 'bd-step active' : 'bd-step';
-    return `<div class="${cls}">${stepLabels[s] || s}</div>`;
+    return `<div class="${cls}">${labels[s] || s}</div>`;
   }).join('');
 }
 
@@ -216,35 +262,41 @@ function hideBDProgress() {
 document.getElementById('btn-launch-discord').addEventListener('click', async () => {
   try {
     await window.api.launchDiscord();
-    showToast('Discord wird gestartet...');
-  } catch (e) { showToast('Fehler: ' + e.message); }
+    showToast(t('toast.launching'));
+  } catch (e) { showToast(t('notif.repairfail', e.message)); }
 });
 
 async function doUpdateDiscord() {
-  showToast('Discord Update wird gestartet...');
+  showToast(t('toast.updatestarted'));
   try {
     const res = await window.api.updateDiscord();
-    showToast(res.message || 'Discord Update gestartet ✓');
-  } catch (e) { showToast('Fehler: ' + e.message); }
+    showToast(res.message || t('toast.updatestarted'));
+  } catch (e) { showToast(t('notif.repairfail', e.message)); }
 }
 
 async function doUpdateBD() {
   completedSteps = [];
-  showBDProgress('fetch', 'Versionsinformationen werden abgerufen...');
+  showBDProgress('fetch', t('bd.progress.fetching'));
   const btn = document.getElementById('btn-update-bd');
+  const btnDash = document.getElementById('btn-update-bd-dash');
   if (btn) btn.disabled = true;
+  if (btnDash) btnDash.disabled = true;
   try {
     const res = await window.api.updateBetterDiscord();
     hideBDProgress();
-    showToast(res.message || `BetterDiscord ${res.version} installiert ✓`);
-    // Refresh status
+    if (res.upToDate) {
+      showToast(t('toast.bd.uptodate', res.version));
+    } else {
+      showToast(res.message || t('notif.bdinstalled', res.version));
+    }
     const status = await window.api.getStatus();
     if (status) renderStatus(status);
   } catch (e) {
     hideBDProgress();
-    showToast('Fehler: ' + e.message);
+    showToast(t('notif.repairfail', e.message));
   } finally {
     if (btn) btn.disabled = false;
+    if (btnDash) btnDash.disabled = false;
   }
 }
 
@@ -258,15 +310,15 @@ document.getElementById('btn-repair-discord')?.addEventListener('click', async (
   const statusEl = document.getElementById('repair-status');
   const statusText = document.getElementById('repair-status-text');
   statusEl.style.display = 'flex';
-  statusText.textContent = 'Discord wird beendet und repariert...';
+  statusText.textContent = t('repair.status.running');
   try {
     const res = await window.api.repairDiscord();
-    statusText.textContent = res.message || 'Reparatur gestartet ✓';
-    showToast('Reparatur gestartet ✓');
+    statusText.textContent = res.message || t('toast.repairstarted');
+    showToast(t('toast.repairstarted'));
     setTimeout(() => { statusEl.style.display = 'none'; }, 5000);
   } catch (e) {
-    statusText.textContent = 'Fehler: ' + e.message;
-    showToast('Fehler: ' + e.message);
+    statusText.textContent = t('notif.repairfail', e.message);
+    showToast(t('notif.repairfail', e.message));
   }
 });
 
@@ -281,23 +333,24 @@ function renderHistory(history) {
   if (!history || history.length === 0) {
     list.innerHTML = `<div class="history-empty">
       <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-      <p>Kein Verlauf vorhanden</p></div>`;
+      <p>${t('history.empty')}</p></div>`;
     return;
   }
   const typeMap = {
-    discord_update:       { icon: '↑', cls: 'update',  title: 'Discord Update erkannt',         detail: e => `${e.from} → ${e.to}` },
-    manual_discord_update:{ icon: '↑', cls: 'manual',  title: 'Manuelles Discord Update',       detail: () => 'Manuell gestartet' },
-    bd_auto_update:       { icon: 'B', cls: 'bd',      title: 'BetterDiscord Auto-Update',      detail: e => `${e.from} → ${e.to}` },
-    bd_update_opened:     { icon: 'B', cls: 'bd',      title: 'BetterDiscord Update',           detail: () => 'Download-Seite geöffnet' },
-    repair:               { icon: '⚙', cls: 'repair',  title: 'Discord Reparatur',              detail: () => 'Reparatur gestartet' },
+    discord_update:       { icon: '↑', cls: 'update',  titleKey: 'history.type.discord_update',         detail: e => `${e.from} → ${e.to}` },
+    manual_discord_update:{ icon: '↑', cls: 'manual',  titleKey: 'history.type.manual_discord_update',  detail: () => t('history.detail.manual') },
+    bd_auto_update:       { icon: 'B', cls: 'bd',      titleKey: 'history.type.bd_auto_update',         detail: e => `${e.from} → ${e.to}` },
+    bd_update_opened:     { icon: 'B', cls: 'bd',      titleKey: 'history.type.bd_update_opened',       detail: () => t('history.detail.download') },
+    repair:               { icon: '⚙', cls: 'repair',  titleKey: 'history.type.repair',                 detail: () => t('history.detail.repair') },
   };
+  const locale = currentLang === 'de' ? 'de-DE' : 'en-GB';
   list.innerHTML = history.map(entry => {
-    const map = typeMap[entry.type] || { icon: '•', cls: 'manual', title: entry.type, detail: () => '' };
-    const time = entry.timestamp ? new Date(entry.timestamp).toLocaleString('de-DE') : '–';
+    const map = typeMap[entry.type] || { icon: '•', cls: 'manual', titleKey: entry.type, detail: () => '' };
+    const time = entry.timestamp ? new Date(entry.timestamp).toLocaleString(locale) : '–';
     return `<div class="history-item">
       <div class="history-icon ${map.cls}">${map.icon}</div>
       <div class="history-info">
-        <div class="history-title">${map.title}</div>
+        <div class="history-title">${t(map.titleKey)}</div>
         <div class="history-detail">${map.detail(entry)}</div>
       </div>
       <div class="history-time">${time}</div>
@@ -308,7 +361,7 @@ function renderHistory(history) {
 document.getElementById('btn-clear-history')?.addEventListener('click', async () => {
   await window.api.clearHistory();
   renderHistory([]);
-  showToast('Verlauf gelöscht');
+  showToast(t('toast.historycleared'));
 });
 document.getElementById('btn-refresh-history')?.addEventListener('click', loadHistory);
 
@@ -318,7 +371,7 @@ function setupToggle(id, key) {
   if (!el) return;
   el.addEventListener('change', async () => {
     await window.api.setSetting(key, el.checked);
-    showToast('Einstellung gespeichert');
+    showToast(t('toast.settingsaved'));
   });
 }
 setupToggle('setting-autostart', 'autoStart');
@@ -329,8 +382,21 @@ setupToggle('toggle-auto-bd', 'autoUpdateBD');
 
 document.getElementById('setting-interval')?.addEventListener('change', async (e) => {
   await window.api.setSetting('checkInterval', parseInt(e.target.value));
-  showToast(`Intervall: alle ${e.target.value} Minuten`);
+  showToast(t('toast.interval', e.target.value));
 });
+
+// Language switcher
+document.getElementById('setting-language')?.addEventListener('change', async (e) => {
+  const lang = e.target.value;
+  currentLang = lang;
+  applyLanguage(lang);
+  await window.api.setSetting('language', lang);
+  showToast(t('toast.settingsaved'));
+  // Re-render dynamic content
+  if (currentStatus) renderStatus(currentStatus);
+  loadHistory();
+});
+
 document.getElementById('btn-quit')?.addEventListener('click', () => window.api.quitApp());
 
 // ── Events from Main ──────────────────────────────────────────────────
@@ -343,21 +409,21 @@ window.api.onUpdateCheckError((data) => {
   setStatusDot('error');
 });
 window.api.onBDUpdateRequired((data) => {
-  showToast('Discord Update erkannt – BetterDiscord wird automatisch aktualisiert...');
+  showToast(t('toast.autobd'));
   completedSteps = [];
-  showBDProgress('fetch', 'Automatisches BD-Update gestartet...');
+  showBDProgress('fetch', t('bd.autoupdate.started'));
 });
 window.api.onBDUpdateProgress((data) => {
   showBDProgress(data.step, data.message);
 });
 window.api.onBDUpdateDone((data) => {
   hideBDProgress();
-  showToast(`BetterDiscord v${data.version} automatisch aktualisiert ✓`);
+  showToast(t('notif.bdauto.done', data.version));
   loadStatus();
 });
 window.api.onBDUpdateError((data) => {
   hideBDProgress();
-  showToast('BD Auto-Update fehlgeschlagen: ' + data.message);
+  showToast(t('notif.bdfail', data.message));
 });
 
 // ── Init ──────────────────────────────────────────────────────────────

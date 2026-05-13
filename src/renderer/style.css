@@ -660,3 +660,10 @@ html, body {
 .bd-step.done::before { content: '✓'; }
 .bd-step.active { color: var(--text-primary); }
 .bd-step.active::before { content: '›'; }
+
+/* ── Language Selector ─────────────────────────────────────────────── */
+.settings-language-select {
+  min-width: 140px;
+  font-size: 14px;
+  padding: 7px 14px;
+}
