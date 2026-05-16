@@ -8,7 +8,7 @@ const https = require('https');
 const { execSync, exec, spawn } = require('child_process');
 const schedule = require('node-schedule');
 
-const APP_VERSION = '1.0.2';
+const APP_VERSION = '1.0.3';
 let store;
 app.setAppUserModelId('com.discordupdater.app');
 
@@ -383,6 +383,45 @@ function deleteFolderSync(folderPath) {
   originalFs.rmdirSync(folderPath);
 }
 
+/**
+ * Safely replaces a file, retrying on EBUSY (file locked by another process).
+ * Falls back to copy+delete if rename keeps failing.
+ */
+async function safeReplaceFile(srcPath, destPath, retries = 5, delayMs = 1000) {
+  // First try: backup existing file
+  const backupPath = destPath + '.bak';
+  if (fs.existsSync(destPath)) {
+    try { fs.renameSync(destPath, backupPath); }
+    catch (e) {
+      // If we can't rename the old one, try deleting it
+      try { fs.unlinkSync(destPath); } catch (_) {}
+    }
+  }
+
+  // Try rename first (fastest), fall back to copy+delete
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      fs.renameSync(srcPath, destPath);
+      return; // success
+    } catch (e) {
+      if (e.code === 'EBUSY' || e.code === 'EPERM') {
+        if (attempt < retries) {
+          console.warn(`safeReplaceFile: attempt ${attempt} failed (${e.code}), retrying in ${delayMs}ms...`);
+          await new Promise(r => setTimeout(r, delayMs));
+        } else {
+          // Final fallback: copy content then delete source
+          console.warn('safeReplaceFile: rename failed, falling back to copy+delete');
+          const buf = originalFs.readFileSync(srcPath);
+          originalFs.writeFileSync(destPath, buf);
+          try { fs.unlinkSync(srcPath); } catch (_) {}
+        }
+      } else {
+        throw e; // unexpected error
+      }
+    }
+  }
+}
+
 function listBackups() {
   const backupDir = getBackupDir();
   if (!backupDir) return [];
@@ -532,12 +571,15 @@ async function performBDUpdate() {
   await downloadFile(assetUrl, asarDest + '.tmp');
 
   if (mainWindow) mainWindow.webContents.send('bd-update-progress', { step: 'stop', message: 'Discord wird beendet...' });
-  try { execSync('taskkill /F /IM Discord.exe', { stdio: 'pipe' }); } catch (e) {}
-  await new Promise(r => setTimeout(r, 1500));
+  // Kill all Discord variants
+  for (const exe of ['Discord.exe', 'DiscordCanary.exe', 'DiscordPTB.exe']) {
+    try { execSync(`taskkill /F /IM ${exe}`, { stdio: 'pipe' }); } catch (e) {}
+  }
+  // Wait for processes to fully release file handles
+  await new Promise(r => setTimeout(r, 3000));
 
   if (mainWindow) mainWindow.webContents.send('bd-update-progress', { step: 'install', message: 'Installiere neue Version...' });
-  if (fs.existsSync(asarDest)) fs.renameSync(asarDest, asarDest + '.bak');
-  fs.renameSync(asarDest + '.tmp', asarDest);
+  await safeReplaceFile(asarDest + '.tmp', asarDest);
   fs.writeFileSync(path.join(dataDir, 'version.json'), JSON.stringify({ version: latestVersion }, null, 2));
   store.set('latestBDVersion', latestVersion);
   store.set('lastBDVersion', latestVersion);

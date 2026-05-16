@@ -1,6 +1,6 @@
 {
   "name": "discord-updater",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Discord & BetterDiscord Update Manager",
   "main": "src/main/main.js",
   "scripts": {
