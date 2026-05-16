@@ -1,6 +1,6 @@
 {
   "name": "discord-updater",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Discord & BetterDiscord Update Manager",
   "main": "src/main/main.js",
   "scripts": {
@@ -12,45 +12,20 @@
   "build": {
     "appId": "com.discordupdater.app",
     "productName": "Discord Updater",
-    "directories": {
-      "output": "dist"
-    },
-    "files": [
-      "src/**/*",
-      "package.json"
-    ],
+    "directories": { "output": "dist" },
+    "files": ["src/**/*", "package.json"],
     "win": {
-      "target": [
-        {
-          "target": "nsis",
-          "arch": [
-            "x64"
-          ]
-        }
-      ],
+      "target": [{ "target": "nsis", "arch": ["x64"] }],
       "icon": "src/assets/icon.ico"
     },
-    "mac": {
-      "target": "dmg",
-      "icon": "src/assets/icon.icns"
-    },
-    "linux": {
-      "target": "AppImage",
-      "icon": "src/assets/icon.png"
-    },
+    "mac": { "target": "dmg", "icon": "src/assets/icon.icns" },
+    "linux": { "target": "AppImage", "icon": "src/assets/icon.png" },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Discord Updater",
-      "installerLanguages": [
-        "de_DE",
-        "en_US"
-      ],
-      "language": "1031",
-      "multiLanguageInstaller": true,
-      "include": "installer.nsh"
+      "shortcutName": "Discord Updater"
     }
   },
   "dependencies": {
